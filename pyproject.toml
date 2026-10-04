@@ -19,6 +19,9 @@ dependencies = [
     "pandas>=2.0",
     "joblib",
     "tqdm",
+    "streamlit",
+    "plotly",
+
 ]
 
 [project.optional-dependencies]

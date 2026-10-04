@@ -116,6 +116,8 @@ def main():
     print(f"Significant at p<0.05: {pval < 0.05}")
 
     results = {
+        "apfd": {"random_mean": random_apfd_mean, "random_all_trials": random_apfds,
+        "fdr_only": fdr_apfd, "greedy": greedy_apfd, "meta_classifier": meta_apfd},
         "apfd_detectable_only": {"n_mutants": n_detectable, **det},
         "fd_at_k": fd_at_k_results,
         "wilcoxon": {"statistic": float(stat), "p_value": float(pval), "significant": bool(pval < 0.05)},

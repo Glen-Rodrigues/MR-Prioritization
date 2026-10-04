@@ -135,9 +135,11 @@ def build_feature_table(kill_matrix, meta) -> pd.DataFrame:
         mr_meta = mr.get_metadata()
         for j, mutant_id in enumerate(mutant_ids):
             spec = specs_by_id.get(mutant_id)
-            operator = spec.operator if spec else "label_corrupt"
-            layer = spec.layer if spec else None
-            strength = spec.strength if spec else 0.0
+            if spec is not None:
+                operator, layer, strength = spec.operator, spec.layer, spec.strength
+            else:  # label-corruption mutants, e.g. LC_40pct_run3 (not in the stale spec list)
+                operator, layer = "label_corrupt_40", None
+                strength = float(mutant_id.split("_")[1].replace("pct", "")) / 100
 
             rows.append({
                 "mr_id": mr_id, "mutant_id": mutant_id,
@@ -172,25 +174,35 @@ def train_meta_classifier(df: pd.DataFrame, seed: int = config.SEED):
     return clf, test_acc, feature_cols
 
 
-def predict_ranking_for_model(clf, feature_cols, model_features: dict) -> list[dict]:
+def predict_ranking_for_model(clf, feature_cols, model_features: dict, weight_only: bool = False) -> list[dict]:
+    """Average predicted kill probability over the mutant distribution
+    (not a single placeholder mutant)."""
     validation = json.load(open(config.OUTPUTS_DIR / "mr_validation.json"))
+    feats = pd.read_csv(config.OUTPUTS_DIR / "meta_classifier_features.csv")
+    mut_cols = ["mutation_type_encoded", "mutation_layer_encoded", "mutation_strength"]
+    mutants = feats.drop_duplicates("mutant_id")[mut_cols]
+    if weight_only:
+        mutants = mutants[mutants["mutation_type_encoded"] != 0]
+
     rows = []
     for mr in mr_engine.ALL_MRS:
-        meta = mr.get_metadata()
-        rows.append({
-            "mr_type_encoded": meta["mr_type_encoded"], "mr_magnitude": meta["magnitude"],
-            "mr_cost_ms": validation[mr.id]["cost_ms"], "mr_is_composite": meta["is_composite"],
-            "mr_category_encoded": meta["category_encoded"],
-            "mutation_type_encoded": 0, "mutation_layer_encoded": 0, "mutation_strength": 0.0,
+        m = mr.get_metadata()
+        base = {
+            "_mr": mr.id,
+            "mr_type_encoded": m["mr_type_encoded"], "mr_magnitude": m["magnitude"],
+            "mr_cost_ms": validation[mr.id]["cost_ms"], "mr_is_composite": m["is_composite"],
+            "mr_category_encoded": m["category_encoded"],
             "model_avg_weight_magnitude": model_features["avg_weight_magnitude"],
             "model_weight_std": model_features["weight_std"],
             "model_test_accuracy": model_features["test_accuracy"],
-        })
-    X = pd.DataFrame(rows)[feature_cols]
-    probs = clf.predict_proba(X)[:, 1]
-    ranked = sorted(zip([m.id for m in mr_engine.ALL_MRS], probs), key=lambda x: -x[1])
+        }
+        for mu in mutants.to_dict("records"):
+            rows.append({**base, **mu})
+    X = pd.DataFrame(rows)
+    X["p"] = clf.predict_proba(X[feature_cols])[:, 1]
+    mean_p = X.groupby("_mr")["p"].mean().sort_values(ascending=False)
     return [{"rank": i + 1, "mr_id": mr_id, "predicted_kill_prob": float(p)}
-            for i, (mr_id, p) in enumerate(ranked)]
+            for i, (mr_id, p) in enumerate(mean_p.items())]
 
 
 def main_meta_classifier():
