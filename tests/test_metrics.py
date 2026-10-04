@@ -1,5 +1,5 @@
 import numpy as np
-from mrrank.metrics import compute_apfd, compute_fd_at_k
+from mrrank.metrics import compute_apfd, compute_apfd_detectable, compute_fd_at_k
 
 
 def _toy_matrix():
@@ -13,12 +13,17 @@ def test_apfd_best_case_first_mr_kills_everything():
     apfd = compute_apfd(["A", "B"], km, idx)
     assert apfd > 0.9
 
+def test_apfd_detectable_ignores_undetected_columns():
+    # 3rd mutant is never killed; detectable APFD should equal APFD of the first two columns
+    km = np.array([[True, False, False], [False, True, False]])
+    idx = {"A": 0, "B": 1}
+    assert compute_apfd_detectable(["A", "B"], km, idx) == compute_apfd(["A", "B"], km[:, :2], idx)
 
-def test_apfd_worst_case_last_mr_kills_everything():
-    km = np.array([[False, False, False], [True, True, True]])
+def test_apfd_best_case_first_mr_kills_everything():
+    km = np.array([[True, True, True], [False, False, False]])
     idx = {"A": 0, "B": 1}
     apfd = compute_apfd(["A", "B"], km, idx)
-    assert apfd < 0.6
+    assert apfd == 0.75  # 1 - (3*1)/(2*3) + 1/(2*2)
 
 
 def test_fd_at_k_full_k_equals_total_detectable_fraction():

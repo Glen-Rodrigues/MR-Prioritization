@@ -35,6 +35,10 @@ def compute_fd_at_k(ordering: list[str], kill_matrix: np.ndarray, mr_id_to_idx: 
     all_detectable = set(np.where(kill_matrix.any(axis=0))[0].tolist())
     return len(detected) / len(all_detectable) if all_detectable else 0.0
 
+def compute_apfd_detectable(ordering: list[str], kill_matrix: np.ndarray, mr_id_to_idx: dict) -> float:
+    """APFD over mutants killed by at least one MR (excludes undetected/equivalent mutants)."""
+    detectable_cols = kill_matrix.any(axis=0)
+    return compute_apfd(ordering, kill_matrix[:, detectable_cols], mr_id_to_idx)
 
 def random_baseline_apfds(mr_ids: list[str], kill_matrix: np.ndarray, mr_id_to_idx: dict, n_trials: int = 30) -> list[float]:
     apfds = []
@@ -72,13 +76,23 @@ def main():
     fdr_apfd = compute_apfd(fdr_order, km, mr_id_to_idx)
     random_apfds = random_baseline_apfds(mr_ids, km, mr_id_to_idx, n_trials=30)
     random_apfd_mean = float(np.mean(random_apfds))
+    n_detectable = int(km.any(axis=0).sum())
+    det = {
+        "random_mean": float(np.mean([
+            compute_apfd_detectable(list(np.random.RandomState(s).permutation(mr_ids)), km, mr_id_to_idx)
+            for s in range(30)
+        ])),
+        "fdr_only": compute_apfd_detectable(fdr_order, km, mr_id_to_idx),
+        "greedy": compute_apfd_detectable(greedy_order, km, mr_id_to_idx),
+        "meta_classifier": compute_apfd_detectable(meta_order, km, mr_id_to_idx),
+    }
 
-    print(f"{'Ordering':<25}{'APFD'}")
-    print("-" * 40)
-    print(f"{'Random (mean of 30)':<25}{random_apfd_mean:.4f}")
-    print(f"{'FDR-only':<25}{fdr_apfd:.4f}")
-    print(f"{'Greedy (Model A)':<25}{greedy_apfd:.4f}")
-    print(f"{'Meta-Classifier (Model B)':<25}{meta_apfd:.4f}")
+    print(f"{'Ordering':<27}{'APFD (all 80)':<16}{f'APFD (detectable {n_detectable})'}")
+    print("-" * 60)
+    print(f"{'Random (mean of 30)':<27}{random_apfd_mean:<16.4f}{det['random_mean']:.4f}")
+    print(f"{'FDR-only':<27}{fdr_apfd:<16.4f}{det['fdr_only']:.4f}")
+    print(f"{'Greedy (Model A)':<27}{greedy_apfd:<16.4f}{det['greedy']:.4f}")
+    print(f"{'Meta-Classifier (Model B)':<27}{meta_apfd:<16.4f}{det['meta_classifier']:.4f}")
 
     # FD@k curves, k=1..20
     print(f"\n{'k':<5}{'Greedy':<10}{'Random(mean)':<15}{'FDR-only'}")
@@ -102,8 +116,7 @@ def main():
     print(f"Significant at p<0.05: {pval < 0.05}")
 
     results = {
-        "apfd": {"random_mean": random_apfd_mean, "random_all_trials": random_apfds,
-                  "fdr_only": fdr_apfd, "greedy": greedy_apfd, "meta_classifier": meta_apfd},
+        "apfd_detectable_only": {"n_mutants": n_detectable, **det},
         "fd_at_k": fd_at_k_results,
         "wilcoxon": {"statistic": float(stat), "p_value": float(pval), "significant": bool(pval < 0.05)},
     }
