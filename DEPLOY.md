@@ -26,9 +26,7 @@ generated and committed **before** you deploy.
 # source .venv/bin/activate     # macOS/Linux
 
 # 2. Compute Model B's real fingerprint (requires torch + CIFAR-10 data)
-python scripts/compute_fingerprint.py \
-    --checkpoint outputs/checkpoints/model_B.pth \
-    --out outputs/model_b_fingerprint.json
+python scripts/compute_fingerprint.py --checkpoint outputs/checkpoints/model_B.pth --out outputs/model_b_fingerprint.json
 
 # 3. Export all app artifacts
 python scripts/export_artifacts.py

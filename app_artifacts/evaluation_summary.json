@@ -140,7 +140,7 @@
     "significant": true
   },
   "model_b_features_used": {
-    "avg_weight_magnitude": 0.005975981242954731,
+    "avg_weight_magnitude": 0.005975980777293444,
     "weight_std": 0.011274334043264389,
     "test_accuracy": 0.878
   }
