@@ -705,7 +705,6 @@ The classifier uses **11 features** per (MR, mutant) row:
     st.markdown("---")
     st.markdown("### ⚠️ Known Issues / Limitations")
     st.info("""
-**Edit this section as needed before sharing the app.**
 
 1. **MR15 (Scale Down) and MR12 (Unsharp Mask) dominate** — together they cover every detectable
    mutant, so APFD cannot meaningfully separate Greedy from FDR-only ordering on this dataset.
@@ -713,16 +712,11 @@ The classifier uses **11 features** per (MR, mutant) row:
 2. **In-sample evaluation** — rankings are evaluated on the same kill matrix they were built from.
    Independent validation against new mutant families is future work.
 
-3. **Model B fingerprint uses zeros by default** — if `scripts/compute_fingerprint.py` was not run
-   before `scripts/export_artifacts.py`, the meta-classifier ranking for Model B will be based
-   on `avg_weight_magnitude=0, weight_std=0, test_accuracy=0`. Run compute_fingerprint.py on
-   `model_B.pth` and re-run export_artifacts.py to get accurate Model B results.
-
-4. **Wilcoxon test is simplified** — a single deterministic APFD is compared against 30 random
+3. **Wilcoxon test is simplified** — a single deterministic APFD is compared against 30 random
    trials by repeating it 30 times. Treat the p-value as an indicative statistic, not a rigorous
    statistical test.
 
-5. **App may sleep after inactivity** — Streamlit Community Cloud free-tier apps sleep after
+4. **App may sleep after inactivity** — Streamlit Community Cloud free-tier apps sleep after
    ~20 minutes of no traffic. The first wake-up request may take 30–60 seconds.
 """)
 
